@@ -1,0 +1,85 @@
+.profile-container {
+  padding: 1rem;
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.profile-header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.profile-header .avatar {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  overflow: hidden;
+  background: rgba(255,255,255,0.2);
+  backdrop-filter: blur(5px);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-size: 2rem;
+  color: #fff;
+}
+
+.profile-header .avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.profile-header h2 {
+  margin: 0;
+  color: #fff;
+}
+
+.profile-header .bio {
+  font-size: 0.9rem;
+  color: #ddd;
+}
+
+.posts-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 1rem;
+}
+
+.post-card {
+  background: rgba(255,255,255,0.1);
+  border-radius: 12px;
+  overflow: hidden;
+  padding: 0.5rem;
+  backdrop-filter: blur(5px);
+}
+
+.post-card .post-image {
+  width: 100%;
+  height: 150px;
+  object-fit: cover;
+  border-radius: 8px;
+}
+
+.post-card .post-caption {
+  margin: 0.5rem 0;
+  color: #fff;
+}
+
+.post-card .post-actions {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.85rem;
+  color: #aaa;
+}
+
+.back-btn {
+  background: transparent;
+  border: none;
+  color: #fff;
+  font-size: 1rem;
+  margin-bottom: 0.5rem;
+  cursor: pointer;
+}

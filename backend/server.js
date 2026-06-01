@@ -1,3 +1,4 @@
+require('dotenv').config();
 const express = require('express');
 const http = require('http');
 const socketIo = require('socket.io');
@@ -14,24 +15,37 @@ const app = express();
 const server = http.createServer(app);
 const io = socketIo(server, {
   cors: {
-    origin: "http://localhost:5173",
-    methods: ["GET", "POST"]
+    origin: process.env.CORS_ORIGIN || "http://localhost:5173",
+    methods: ["GET", "POST", "PUT", "DELETE", "PATCH"]
   }
 });
 
 const adapter = new JSONFile('db.json');
-const defaultData = { users: [], messages: [], privateMessages: [] };
+const defaultData = { users: [], messages: [], privateMessages: [], posts: [], comments: [], likes: [] };
 const db = new Low(adapter, defaultData);
 
 async function initializeDB() {
   await db.read();
-  db.data = db.data || { users: [], messages: [], privateMessages: [] };
+  db.data = db.data || { users: [], messages: [], privateMessages: [], posts: [], comments: [], likes: [] };
+  if (!db.data.posts) db.data.posts = [];
+  if (!db.data.comments) db.data.comments = [];
+  if (!db.data.likes) db.data.likes = [];
   await db.write();
 }
  
 const uploadsDir = path.join(__dirname, 'uploads');
 if (!fs.existsSync(uploadsDir)) {
   fs.mkdirSync(uploadsDir, { recursive: true });
+}
+
+const voicesDir = path.join(__dirname, 'uploads', 'voices');
+if (!fs.existsSync(voicesDir)) {
+  fs.mkdirSync(voicesDir, { recursive: true });
+}
+
+const avatarsDir = path.join(__dirname, 'uploads', 'avatars');
+if (!fs.existsSync(avatarsDir)) {
+  fs.mkdirSync(avatarsDir, { recursive: true });
 }
  
 const storage = multer.diskStorage({
@@ -44,8 +58,59 @@ const storage = multer.diskStorage({
   }
 });
 
+const voiceStorage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, voicesDir);
+  },
+  filename: (req, file, cb) => {
+    const ext = path.extname(file.originalname) || '.webm';
+    const uniqueName = Date.now() + '-' + Math.round(Math.random() * 1E9) + ext;
+    cb(null, uniqueName);
+  }
+});
+
+const avatarStorage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, avatarsDir);
+  },
+  filename: (req, file, cb) => {
+    const uniqueName = Date.now() + '-' + Math.round(Math.random() * 1E9) + path.extname(file.originalname);
+    cb(null, uniqueName);
+  }
+});
+
 const upload = multer({
   storage: storage,
+  limits: {
+    fileSize: 5 * 1024 * 1024
+  },
+  fileFilter: (req, file, cb) => {
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+    if (allowedTypes.includes(file.mimetype)) {
+      cb(null, true);
+    } else {
+      cb(new Error('Only image files are allowed!'), false);
+    }
+  }
+});
+
+const voiceUpload = multer({
+  storage: voiceStorage,
+  limits: {
+    fileSize: 50 * 1024 * 1024 // 50MB for 5min voice
+  },
+  fileFilter: (req, file, cb) => {
+    const allowedTypes = ['audio/webm', 'audio/ogg', 'audio/mp4', 'audio/mpeg', 'audio/wav', 'audio/x-m4a'];
+    if (allowedTypes.includes(file.mimetype)) {
+      cb(null, true);
+    } else {
+      cb(new Error('Only audio files are allowed!'), false);
+    }
+  }
+});
+
+const avatarUpload = multer({
+  storage: avatarStorage,
   limits: {
     fileSize: 5 * 1024 * 1024
   },
@@ -91,13 +156,15 @@ app.post('/api/register', async (req, res) => {
     id: Date.now().toString(),
     username,
     password: hashedPassword,
+    bio: '',
+    avatar: '',
     createdAt: new Date().toISOString()
   };
 
   db.data.users.push(user);
   await db.write();
 
-  res.json({ message: 'User registered successfully', userId: user.id, username: user.username });
+  res.json({ message: 'User registered successfully', userId: user.id, username: user.username, avatar: user.avatar || '' });
 });
 
 app.post('/api/login', async (req, res) => {
@@ -112,7 +179,7 @@ app.post('/api/login', async (req, res) => {
     return res.status(401).json({ error: 'Invalid credentials' });
   }
 
-  res.json({ message: 'Login successful', userId: user.id, username: user.username });
+  res.json({ message: 'Login successful', userId: user.id, username: user.username, avatar: user.avatar || '' });
 });
 
 app.get('/api/messages', (req, res) => {
@@ -142,6 +209,10 @@ app.delete('/api/user/:userId', async (req, res) => {
   db.data.privateMessages = db.data.privateMessages.filter(msg => 
     msg.senderId !== userId && msg.receiverId !== userId
   );
+  // Also clean up posts, comments, likes
+  db.data.posts = db.data.posts.filter(post => post.userId !== userId);
+  db.data.comments = db.data.comments.filter(comment => comment.userId !== userId);
+  db.data.likes = db.data.likes.filter(like => like.userId !== userId);
   
   await db.write();
   res.json({ message: 'User account deleted successfully' });
@@ -186,6 +257,63 @@ app.post('/api/upload-image', upload.single('image'), (req, res) => {
   }
 });
 
+// Voice message upload
+app.post('/api/upload-voice', voiceUpload.single('voice'), (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: 'No voice file uploaded' });
+    }
+    
+    const voiceUrl = `/uploads/voices/${req.file.filename}`;
+    const duration = req.body.duration || 0;
+    res.json({ voiceUrl, duration });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to upload voice message' });
+  }
+});
+
+// Avatar upload
+app.post('/api/upload-avatar', avatarUpload.single('avatar'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: 'No avatar file uploaded' });
+    }
+    
+    const avatarUrl = `/uploads/avatars/${req.file.filename}`;
+    const userId = req.body.userId;
+    
+    if (userId) {
+      const user = db.data.users.find(u => u.id === userId);
+      if (user) {
+        user.avatar = avatarUrl;
+        await db.write();
+      }
+    }
+    
+    res.json({ avatarUrl });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to upload avatar' });
+  }
+});
+
+// Delete avatar
+app.delete('/api/user/:userId/avatar', async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const user = db.data.users.find(u => u.id === userId);
+    
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    
+    user.avatar = '';
+    await db.write();
+    res.json({ message: 'Avatar deleted successfully' });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to delete avatar' });
+  }
+});
+
 app.post('/api/translate', async (req, res) => {
   const { text, targetLang } = req.body;
   try {
@@ -196,6 +324,246 @@ app.post('/api/translate', async (req, res) => {
   }
 });
 
+// ==================== PROFILE APIs ====================
+
+// Get user profile
+app.get('/api/user/:userId', (req, res) => {
+  const { userId } = req.params;
+  const user = db.data.users.find(u => u.id === userId);
+  
+  if (!user) {
+    return res.status(404).json({ error: 'User not found' });
+  }
+  
+  const postCount = db.data.posts.filter(p => p.userId === userId).length;
+  
+  res.json({
+    id: user.id,
+    username: user.username,
+    bio: user.bio || '',
+    avatar: user.avatar || '',
+    postCount,
+    createdAt: user.createdAt
+  });
+});
+
+// Update user profile
+app.put('/api/user/:userId/profile', async (req, res) => {
+  const { userId } = req.params;
+  const { bio } = req.body;
+  
+  const user = db.data.users.find(u => u.id === userId);
+  if (!user) {
+    return res.status(404).json({ error: 'User not found' });
+  }
+  
+  if (bio !== undefined) user.bio = bio;
+  await db.write();
+  
+  res.json({ message: 'Profile updated', bio: user.bio, avatar: user.avatar || '' });
+});
+
+// ==================== POSTS APIs ====================
+
+// Get all posts (feed)
+app.get('/api/posts', (req, res) => {
+  const posts = [...db.data.posts].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+  
+  // Add like count and user info to each post
+  const postsWithMeta = posts.map(post => {
+    const likeCount = db.data.likes.filter(l => l.postId === post.id).length;
+    const commentCount = db.data.comments.filter(c => c.postId === post.id).length;
+    const user = db.data.users.find(u => u.id === post.userId);
+    return {
+      ...post,
+      likeCount,
+      commentCount,
+      userAvatar: user?.avatar || ''
+    };
+  });
+  
+  res.json(postsWithMeta);
+});
+
+// Get posts by user
+app.get('/api/posts/user/:userId', (req, res) => {
+  const { userId } = req.params;
+  const posts = db.data.posts
+    .filter(p => p.userId === userId)
+    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+  
+  const postsWithMeta = posts.map(post => {
+    const likeCount = db.data.likes.filter(l => l.postId === post.id).length;
+    const commentCount = db.data.comments.filter(c => c.postId === post.id).length;
+    return { ...post, likeCount, commentCount };
+  });
+  
+  res.json(postsWithMeta);
+});
+
+// Create post
+app.post('/api/posts', upload.single('image'), async (req, res) => {
+  try {
+    const { userId, username, caption } = req.body;
+    
+    if (!req.file) {
+      return res.status(400).json({ error: 'Image is required for a post' });
+    }
+    
+    const imageUrl = `/uploads/${req.file.filename}`;
+    const post = {
+      id: Date.now().toString(),
+      userId,
+      username,
+      imageUrl,
+      caption: caption || '',
+      createdAt: new Date().toISOString()
+    };
+    
+    db.data.posts.push(post);
+    await db.write();
+    
+    // Broadcast new post to all connected users
+    io.emit('new_post', { ...post, likeCount: 0, commentCount: 0 });
+    
+    res.json(post);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to create post' });
+  }
+});
+
+// Delete post
+app.delete('/api/posts/:postId', async (req, res) => {
+  const { postId } = req.params;
+  const postIndex = db.data.posts.findIndex(p => p.id === postId);
+  
+  if (postIndex === -1) {
+    return res.status(404).json({ error: 'Post not found' });
+  }
+  
+  db.data.posts.splice(postIndex, 1);
+  // Also delete related comments and likes
+  db.data.comments = db.data.comments.filter(c => c.postId !== postId);
+  db.data.likes = db.data.likes.filter(l => l.postId !== postId);
+  await db.write();
+  
+  io.emit('post_deleted', postId);
+  
+  res.json({ message: 'Post deleted successfully' });
+});
+
+// ==================== LIKES APIs ====================
+
+// Toggle like
+app.post('/api/posts/:postId/like', async (req, res) => {
+  const { postId } = req.params;
+  const { userId } = req.body;
+  
+  const existingLike = db.data.likes.find(l => l.postId === postId && l.userId === userId);
+  
+  if (existingLike) {
+    // Unlike
+    db.data.likes = db.data.likes.filter(l => !(l.postId === postId && l.userId === userId));
+    await db.write();
+    const likeCount = db.data.likes.filter(l => l.postId === postId).length;
+    io.emit('post_like_update', { postId, likeCount, userId, liked: false });
+    res.json({ liked: false, likeCount });
+  } else {
+    // Like
+    const like = {
+      id: Date.now().toString(),
+      postId,
+      userId
+    };
+    db.data.likes.push(like);
+    await db.write();
+    const likeCount = db.data.likes.filter(l => l.postId === postId).length;
+    io.emit('post_like_update', { postId, likeCount, userId, liked: true });
+    res.json({ liked: true, likeCount });
+  }
+});
+
+// Check if user liked a post
+app.get('/api/posts/:postId/liked/:userId', (req, res) => {
+  const { postId, userId } = req.params;
+  const liked = db.data.likes.some(l => l.postId === postId && l.userId === userId);
+  const likeCount = db.data.likes.filter(l => l.postId === postId).length;
+  res.json({ liked, likeCount });
+});
+
+// ==================== COMMENTS APIs ====================
+
+// Get comments for a post
+app.get('/api/posts/:postId/comments', (req, res) => {
+  const { postId } = req.params;
+  const comments = db.data.comments
+    .filter(c => c.postId === postId)
+    .sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
+  
+  // Add user avatar to comments
+  const commentsWithMeta = comments.map(comment => {
+    const user = db.data.users.find(u => u.id === comment.userId);
+    return { ...comment, userAvatar: user?.avatar || '' };
+  });
+  
+  res.json(commentsWithMeta);
+});
+
+// Add comment
+app.post('/api/posts/:postId/comments', async (req, res) => {
+  const { postId } = req.params;
+  const { userId, username, content } = req.body;
+  
+  if (!content || !content.trim()) {
+    return res.status(400).json({ error: 'Comment content is required' });
+  }
+  
+  const comment = {
+    id: Date.now().toString(),
+    postId,
+    userId,
+    username,
+    content: content.trim(),
+    createdAt: new Date().toISOString()
+  };
+  
+  db.data.comments.push(comment);
+  await db.write();
+  
+  const commentCount = db.data.comments.filter(c => c.postId === postId).length;
+  io.emit('post_comment_update', { postId, commentCount, comment });
+  
+  res.json(comment);
+});
+
+// Delete comment
+app.delete('/api/comments/:commentId', async (req, res) => {
+  const { commentId } = req.params;
+  const commentIndex = db.data.comments.findIndex(c => c.id === commentId);
+  
+  if (commentIndex === -1) {
+    return res.status(404).json({ error: 'Comment not found' });
+  }
+  
+  const postId = db.data.comments[commentIndex].postId;
+  db.data.comments.splice(commentIndex, 1);
+  await db.write();
+  
+  const commentCount = db.data.comments.filter(c => c.postId === postId).length;
+  io.emit('post_comment_update', { postId, commentCount });
+  
+  res.json({ message: 'Comment deleted successfully' });
+});
+
+// ==================== PRODUCTION: Serve Frontend ====================
+const frontendPath = path.join(__dirname, '..', 'frontend', 'dist');
+if (fs.existsSync(frontendPath)) {
+  app.use(express.static(frontendPath));
+  // For any non-API route, serve index.html (SPA fallback)
+  app.get(/^(?!\/api|\/uploads).*/, (req, res) => {
+    res.sendFile(path.join(frontendPath, 'index.html'));
+  });
+}
 
 const connectedUsers = new Map();
 const activeCalls = new Map();
@@ -217,6 +585,8 @@ io.on('connection', (socket) => {
       content: messageData.content,
       type: messageData.type || 'text', 
       imageUrl: messageData.imageUrl || null,
+      voiceUrl: messageData.voiceUrl || null,
+      voiceDuration: messageData.voiceDuration || null,
       timestamp: new Date().toISOString()
     };
 
@@ -235,6 +605,8 @@ io.on('connection', (socket) => {
       content: messageData.content,
       type: messageData.type || 'text', 
       imageUrl: messageData.imageUrl || null,
+      voiceUrl: messageData.voiceUrl || null,
+      voiceDuration: messageData.voiceDuration || null,
       timestamp: new Date().toISOString()
     };
 

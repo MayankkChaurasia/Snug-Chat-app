@@ -1,63 +1,29 @@
 {
   "users": [
     {
-      "id": "1758292815383",
-      "username": "kali",
-      "password": "$2b$10$YYLqV9lr5/ttQaA2D1E4GeDoxYsaz/rvKG.xFY72QedHrq5hPE3Qi",
-      "createdAt": "2025-09-19T14:40:15.383Z"
+      "id": "1780300319419",
+      "username": "krishu",
+      "password": "$2b$10$5cIS9UTTswjoF2KOa0wfg.qGkQZ9ZyCiuoiTpJjMcZ29n9iBh9RLW",
+      "createdAt": "2026-06-01T07:51:59.419Z"
     },
     {
-      "id": "1758302246232",
+      "id": "1780305748053",
+      "username": "krishuu",
+      "password": "$2b$10$zF39RlN91X8wIhklwuqxW.mAnw0dzjm35KWYQBOh6RbhhKxRc4xwW",
+      "createdAt": "2026-06-01T09:22:28.053Z",
+      "avatar": ""
+    },
+    {
+      "id": "1780306077971",
       "username": "mayank",
-      "password": "$2b$10$gvNGii1nFFJZuEWW8z0/uegyT/ZwHElb0eCeE.t6XI8bbE.scHNiG",
-      "createdAt": "2025-09-19T17:17:26.232Z"
+      "password": "$2b$10$AqXJ04rwwxpAoQK.PzHKjODJvjKWp7oNCbZpEjnn9QmhZ4AQ8GZnW",
+      "createdAt": "2026-06-01T09:27:57.971Z",
+      "avatar": "/uploads/avatars/1780308133794-936582933.jpg"
     }
   ],
-  "messages": [
-    {
-      "id": "1758301066586",
-      "username": "kali",
-      "userId": "1758292815383",
-      "content": "😃yo",
-      "timestamp": "2025-09-19T16:57:46.586Z"
-    },
-    {
-      "id": "1758384555986",
-      "username": "kali",
-      "userId": "1758292815383",
-      "content": "",
-      "type": "image",
-      "imageUrl": "/uploads/1758384555965-825382248.png",
-      "timestamp": "2025-09-20T16:09:15.986Z"
-    },
-    {
-      "id": "1758384591322",
-      "username": "mayank",
-      "userId": "1758302246232",
-      "content": "nice",
-      "type": "text",
-      "imageUrl": null,
-      "timestamp": "2025-09-20T16:09:51.322Z"
-    },
-    {
-      "id": "1758454654951",
-      "username": "mayank",
-      "userId": "1758302246232",
-      "content": "hlo",
-      "type": "text",
-      "imageUrl": null,
-      "timestamp": "2025-09-21T11:37:34.951Z"
-    }
-  ],
-  "privateMessages": [
-    {
-      "id": "1758355454285",
-      "senderId": "1758292815383",
-      "senderUsername": "kali",
-      "receiverId": "1758302246232",
-      "receiverUsername": "mayank",
-      "content": "hello",
-      "timestamp": "2025-09-20T08:04:14.285Z"
-    }
-  ]
+  "messages": [],
+  "privateMessages": [],
+  "posts": [],
+  "comments": [],
+  "likes": []
 }

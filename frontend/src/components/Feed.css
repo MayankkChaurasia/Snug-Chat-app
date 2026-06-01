@@ -1,0 +1,96 @@
+/* Feed component styling – maintains existing glassmorphism theme */
+.feed-container {
+  padding: 1rem;
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.post-card {
+  background: rgba(255, 255, 255, 0.15);
+  backdrop-filter: blur(10px);
+  border-radius: 12px;
+  margin-bottom: 1.5rem;
+  overflow: hidden;
+  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
+  padding: 1rem;
+}
+
+.post-header {
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+  color: #fff;
+}
+
+.post-image {
+  width: 100%;
+  max-height: 400px;
+  object-fit: cover;
+  border-radius: 8px;
+  margin: 0.5rem 0;
+}
+
+.post-caption {
+  margin-top: 0.5rem;
+  color: #e0e0e0;
+}
+
+.post-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-top: 0.5rem;
+  color: #fff;
+}
+
+.like-btn {
+  background: transparent;
+  border: none;
+  color: #ff6b6b;
+  cursor: pointer;
+  font-size: 1rem;
+}
+
+.create-post-btn {
+  background: rgba(255,255,255,0.2);
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 8px;
+  color: #fff;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.modal {
+  background: rgba(0,0,0,0.8);
+  color: #fff;
+  padding: 1.5rem;
+  border-radius: 12px;
+  max-width: 90%;
+  margin: auto;
+}
+
+.modal input[type="file"] {
+  margin-bottom: 0.5rem;
+}
+
+.modal textarea {
+  width: 100%;
+  height: 80px;
+  margin-bottom: 0.5rem;
+  resize: none;
+  background: rgba(255,255,255,0.1);
+  border: 1px solid rgba(255,255,255,0.2);
+  color: #fff;
+  padding: 0.5rem;
+  border-radius: 6px;
+}
+
+.modal button {
+  background: rgba(255,255,255,0.2);
+  border: none;
+  padding: 0.4rem 0.8rem;
+  margin-right: 0.5rem;
+  border-radius: 6px;
+  color: #fff;
+  cursor: pointer;
+}

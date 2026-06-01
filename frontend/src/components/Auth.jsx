@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { API_URL } from '../config'
 import './Auth.css'
 
 const Auth = ({ onLogin }) => {
@@ -16,14 +17,14 @@ const Auth = ({ onLogin }) => {
     setError('')
     try {
       const endpoint = isLogin ? '/api/login' : '/api/register'
-      const response = await fetch(`http://localhost:3001${endpoint}`, {
+      const response = await fetch(`${API_URL}${endpoint}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username, password }),
       })
       const data = await response.json()
       if (response.ok) {
-        onLogin({ userId: data.userId, username: data.username })
+        onLogin({ userId: data.userId, username: data.username, avatar: data.avatar || '' })
       } else {
         setError(data.error)
       }

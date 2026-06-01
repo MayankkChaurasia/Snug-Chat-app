@@ -52,9 +52,34 @@ const CallManager = forwardRef(({ socket, user, onlineUsers, onCallStateChange }
 
   const getUserMedia = async (video = false) => {
     try {
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        alert("Camera/Microphone access is disabled by your browser because this site is being accessed over insecure HTTP instead of HTTPS (this happens when accessing local IPs like 192.168.x.x on mobile devices).\n\nTo enable voice/video features:\n1. On Laptop: Access via 'http://localhost:5173'\n2. On Mobile (Chrome): Search 'chrome://flags/#unsafely-treat-insecure-origin-as-secure' in Chrome, enter your laptop's URL (e.g. 'http://192.168.x.x:5173'), set to 'Enabled', and restart Chrome.\n3. Alternatively, host the app with HTTPS or use a tunneling tool like ngrok.");
+        return null
+      }
+
+      // Try capturing video + audio if requested
+      if (video) {
+        try {
+          const stream = await navigator.mediaDevices.getUserMedia({
+            audio: true,
+            video: true
+          })
+          setLocalStream(stream)
+          if (localVideoRef.current) {
+            localVideoRef.current.srcObject = stream
+          }
+          return stream
+        } catch (videoError) {
+          console.warn('Camera access failed, falling back to audio-only:', videoError)
+          alert('Could not access or detect a working camera. Starting a voice-only call instead.')
+          setIsVideoCall(false)
+        }
+      }
+
+      // Fallback or explicit audio-only capture
       const stream = await navigator.mediaDevices.getUserMedia({
         audio: true,
-        video: video
+        video: false
       })
       
       setLocalStream(stream)
@@ -65,7 +90,7 @@ const CallManager = forwardRef(({ socket, user, onlineUsers, onCallStateChange }
       return stream
     } catch (error) {
       console.error('Error accessing media devices:', error)
-      alert('Could not access camera/microphone. Please check permissions.')
+      alert('Could not access your microphone. Please ensure you have allowed permissions in your browser settings and a working microphone is connected.')
       return null
     }
   }
@@ -143,14 +168,15 @@ const CallManager = forwardRef(({ socket, user, onlineUsers, onCallStateChange }
     const stream = await getUserMedia(true)
     if (!stream) return
     
-    setIsVideoCall(true)
+    const hasVideo = stream.getVideoTracks().length > 0
+    setIsVideoCall(hasVideo)
     setCallState('calling')
     
     const callData = {
       id: Date.now().toString(),
       caller: user,
       participant: targetUser,
-      isVideo: true,
+      isVideo: hasVideo,
       timestamp: new Date().toISOString()
     }
     
